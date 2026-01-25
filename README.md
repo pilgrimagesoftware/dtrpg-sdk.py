@@ -1,3 +1,3 @@
-# dtrpg-client.py
+# dtrpg-sdk.py
 
-A client library for DriveThru RPG API in Python
+An SDK for DriveThru RPG API in Python
