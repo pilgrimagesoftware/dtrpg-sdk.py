@@ -1,0 +1,41 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@git-cliff
+
+      - name: Determine next version
+        id: version
+        run: |
+          NEXT_VERSION=$(git-cliff --bumped-version)
+          echo "version=${NEXT_VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Bump pyproject.toml
+        run: uv version ${{ steps.version.outputs.version }}
+
+      - name: Update changelog
+        run: git-cliff --tag v${{ steps.version.outputs.version }} --unreleased --prepend CHANGELOG.md
+
+      - name: Open release PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: release/${{ steps.version.outputs.version }}
+          base: master
+          title: "Release ${{ steps.version.outputs.version }}"
+          commit-message: "chore(release): ${{ steps.version.outputs.version }}"
+          body: "Automated release PR. Review the changelog and pyproject.toml version before merging."
