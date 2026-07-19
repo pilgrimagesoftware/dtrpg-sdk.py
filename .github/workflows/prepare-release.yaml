@@ -92,34 +92,39 @@ jobs:
           BRANCH="${{ steps.push_branch.outputs.branch }}"
           HEAD_OID="${{ steps.push_branch.outputs.head_oid }}"
 
-          ADDITIONS=$(jq -n \
-            --arg pyproject_toml "$(base64 -w0 pyproject.toml)" \
-            --arg uv_lock "$(base64 -w0 uv.lock)" \
-            --arg changelog "$(base64 -w0 CHANGELOG.md)" \
-            '[
-              {path: "pyproject.toml", contents: $pyproject_toml},
-              {path: "uv.lock", contents: $uv_lock},
-              {path: "CHANGELOG.md", contents: $changelog}
-            ]')
-
-          INPUT=$(jq -n \
+          # File contents are read via --rawfile (jq reads the file itself)
+          # rather than piped through `base64 -w0 file` as a shell argument
+          # and then re-passed through --argjson: for large lockfiles that
+          # can blow past the kernel's ARG_MAX ("Argument list too long").
+          # jq's @base64 filter does the encoding internally instead, and
+          # the whole payload is built in one jq call so no intermediate
+          # shell variable ever holds the full encoded content.
+          jq -n \
+            --rawfile pyproject_toml pyproject.toml \
+            --rawfile uv_lock uv.lock \
+            --rawfile changelog CHANGELOG.md \
             --arg repo "pilgrimagesoftware/dtrpg-sdk.py" \
             --arg branch "$BRANCH" \
             --arg headOid "$HEAD_OID" \
             --arg message "chore(release): ${{ steps.version.outputs.version }}" \
-            --argjson additions "$ADDITIONS" \
-            '{
-              branch: {repositoryNameWithOwner: $repo, branchName: $branch},
-              message: {headline: $message},
-              expectedHeadOid: $headOid,
-              fileChanges: {additions: $additions}
-            }')
-
-          jq -n \
             --arg query 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }' \
-            --argjson input "$INPUT" \
-            '{query: $query, variables: {input: $input}}' \
-            | gh api graphql --input -
+            '{
+              query: $query,
+              variables: {
+                input: {
+                  branch: {repositoryNameWithOwner: $repo, branchName: $branch},
+                  message: {headline: $message},
+                  expectedHeadOid: $headOid,
+                  fileChanges: {
+                    additions: [
+                      {path: "pyproject.toml", contents: ($pyproject_toml | @base64)},
+                      {path: "uv.lock", contents: ($uv_lock | @base64)},
+                      {path: "CHANGELOG.md", contents: ($changelog | @base64)}
+                    ]
+                  }
+                }
+              }
+            }' | gh api graphql --input -
 
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
