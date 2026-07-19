@@ -30,15 +30,20 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
+      - name: Resolve Python version
+        id: python_version
+        run: |
+          echo "version=$(cat .python-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ steps.python_version.outputs.version }}
+
       - name: Install git-cliff
         uses: taiki-e/install-action@v2
         with:
           tool: git-cliff
-
-      - name: Install cargo-edit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-edit
 
       - name: Determine next version
         id: version
@@ -46,9 +51,9 @@ jobs:
           NEXT_VERSION=$(git-cliff --bumped-version)
           echo "version=${NEXT_VERSION#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Bump Cargo.toml
+      - name: Bump pyproject.toml
         run: |
-          cargo set-version ${{ steps.version.outputs.version }}
+          uv version ${{ steps.version.outputs.version }}
 
       - name: Update changelog
         run: |
@@ -66,9 +71,9 @@ jobs:
           BRANCH="release/${{ steps.version.outputs.version }}"
           git checkout -b "$BRANCH"
 
-          if git diff --quiet -- Cargo.toml Cargo.lock CHANGELOG.md; then
+          if git diff --quiet -- pyproject.toml uv.lock CHANGELOG.md; then
             echo "::error::Nothing to release at version ${{ steps.version.outputs.version }}."
-            echo "::error::git-cliff computed this as the next version, but Cargo.toml and CHANGELOG.md already match what this run would have produced."
+            echo "::error::git-cliff computed this as the next version, but pyproject.toml and CHANGELOG.md already match what this run would have produced."
             echo "::error::Likely causes: (1) no new conventional commits (feat:/fix:/etc.) have landed on develop since the last release; or (2) no git tag exists yet for a prior release, so git-cliff cannot compute a version relative to history and keeps recomputing the same fallback version on every run (see 'Determine next version' step output above)."
             echo "::error::If (2), a git tag needs to be created for the most recent release before this workflow can advance past ${{ steps.version.outputs.version }}."
             exit 1
@@ -88,12 +93,12 @@ jobs:
           HEAD_OID="${{ steps.push_branch.outputs.head_oid }}"
 
           ADDITIONS=$(jq -n \
-            --arg cargo_toml "$(base64 -w0 Cargo.toml)" \
-            --arg cargo_lock "$(base64 -w0 Cargo.lock)" \
+            --arg pyproject_toml "$(base64 -w0 pyproject.toml)" \
+            --arg uv_lock "$(base64 -w0 uv.lock)" \
             --arg changelog "$(base64 -w0 CHANGELOG.md)" \
             '[
-              {path: "Cargo.toml", contents: $cargo_toml},
-              {path: "Cargo.lock", contents: $cargo_lock},
+              {path: "pyproject.toml", contents: $pyproject_toml},
+              {path: "uv.lock", contents: $uv_lock},
               {path: "CHANGELOG.md", contents: $changelog}
             ]')
 
@@ -124,7 +129,7 @@ jobs:
           GH_TOKEN: ${{ steps.psw_ci_token.outputs.token }}
         run: |
           BRANCH="${{ steps.release_branch.outputs.branch }}"
-          BODY="Automated release PR. Review the changelog and Cargo.toml version before merging."
+          BODY="Automated release PR. Review the changelog and pyproject.toml version before merging."
 
           # `gh pr view` matches *any* PR ever associated with this branch
           # name, including closed ones — and GitHub refuses to reopen a PR
