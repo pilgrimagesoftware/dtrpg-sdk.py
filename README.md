@@ -7,11 +7,10 @@ A Python SDK for the [DriveThruRPG API](https://api.drivethrurpg.com).
 
 Requires Python 3.12+.
 
-**Status: in development.** This repository currently provides the package scaffolding
-(build, lint, type check, test, and release pipeline). Configuration, authentication/session
-lifecycle, and the library client (orders, product lists, download preparation) are not yet
-implemented — see [dtrpg-sdk.py#1](https://github.com/pilgrimagesoftware/dtrpg-sdk.py/issues/1)
-for progress. For a complete reference implementation of the same API surface, see the
+Provides configuration, the credential-login and application-key auth flows, session
+lifecycle management, and a `LibraryClient` covering order products, download
+preparation, and product lists/product list items. For a reference implementation of
+the same API surface in another language, see the
 [Go](https://github.com/pilgrimagesoftware/dtrpg-sdk.go), [Rust](https://github.com/pilgrimagesoftware/dtrpg-sdk.rs),
 or [Swift](https://github.com/pilgrimagesoftware/dtrpg-sdk.swift) SDKs.
 
@@ -23,11 +22,31 @@ Not yet published to PyPI. Once released:
 uv add dtrpg-sdk
 ```
 
+## Quick Start
+
+```python
+from dtrpg_sdk import Config, DriveThruRpgSdk, LibraryItemsParams
+from dtrpg_sdk.auth import key_exchange
+
+config = Config(application_key="my-app-key")
+sdk = DriveThruRpgSdk.with_config(config)
+
+# Exchange the application key for a session token.
+token_response = key_exchange.authenticate("my-app-key", config)
+sdk.apply_auth_response(token_response)
+
+# Build an authenticated library client and fetch the user's library.
+client = sdk.library_client()
+products = client.list_order_products(LibraryItemsParams(page=1, page_size=25))
+for item in products.data:
+    print(item.attributes.name)
+```
+
 ## Building from source
 
-This repository will use the `dtrpg-api` repository as a submodule (`API/`) once the
-`dtrpg-api` integration lands, matching the pattern used by the Go/Rust/Swift SDKs. Clone
-with submodules, or initialize them after cloning:
+This repository uses the `dtrpg-api` repository as a submodule (`API/`), matching the
+pattern used by the Go/Rust/Swift SDKs. Clone with submodules, or initialize them after
+cloning:
 
 ```bash
 git clone --recursive https://github.com/pilgrimagesoftware/dtrpg-sdk.py.git
