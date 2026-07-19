@@ -67,4 +67,4 @@
 - [x] 9.1 `uv run ruff check .` and `uv run ruff format --check .` pass
 - [x] 9.2 `uv run pyrefly check` passes
 - [x] 9.3 `uv run pytest` passes with no skipped tests
-- [ ] 9.4 CI (lint, typecheck, test) passes on the PR
+- [x] 9.4 CI (lint, typecheck, test) passes on the PR
