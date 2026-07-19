@@ -4,19 +4,48 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re-)run the release for, e.g. v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency: release
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Resolve tag
+        id: resolve_tag
+        run: |
+          echo "tag=${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          ref: ${{ steps.resolve_tag.outputs.tag }}
+          fetch-depth: 0 # full history required for git-cliff
+          fetch-tags: true
+          show-progress: true
+          submodules: recursive
+
+      - name: Resolve Python version
+        id: python_version
+        run: |
+          echo "version=$(cat .python-version)" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ steps.python_version.outputs.version }}
 
       - name: Install git-cliff
         uses: taiki-e/install-action@git-cliff
@@ -27,18 +56,32 @@ jobs:
           uv run pytest
 
       - name: Build
-        run: uv build
+        run: |
+            uv build
 
       - name: Publish to PyPI
-        run: uv publish
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+            uv publish
 
       - name: Generate changelog for this tag
-        run: git-cliff --current --strip header -o RELEASE_NOTES.md
+        run: |
+            git-cliff --current --strip header -o RELEASE_NOTES.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           body_path: RELEASE_NOTES.md
           files: dist/*
+
+      - name: Update develop from master
+        id: update_develop
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "ci@pilgrimagesoftware.com"
+          git config --global user.name "Pilgrimage Software CI"
+          git checkout develop
+          git merge origin/master
+          git push origin develop

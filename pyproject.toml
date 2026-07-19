@@ -1,6 +1,6 @@
 [project]
 name = "dtrpg-sdk"
-version = "0.2.0"
+version = "0.3.0"
 description = "SDK for the DriveThruRPG API"
 readme = "README.md"
 license = "MIT"
@@ -8,13 +8,16 @@ authors = [
     { name = "Paul Schifferer", email = "paul@schifferers.net" }
 ]
 requires-python = ">=3.12.0"
-dependencies = []
+dependencies = [
+    "httpx>=0.28.1",
+]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3.0",
     "pyrefly>=0.13.0",
     "ruff>=0.8.0",
+    "respx>=0.23.1",
 ]
 
 [build-system]

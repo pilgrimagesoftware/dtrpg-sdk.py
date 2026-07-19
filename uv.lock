@@ -35,22 +35,28 @@ wheels = [
 
 [[package]]
 name = "dtrpg-sdk"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "." }
+dependencies = [
+    { name = "httpx" },
+]
 
 [package.dev-dependencies]
 dev = [
     { name = "pyrefly" },
     { name = "pytest" },
+    { name = "respx" },
     { name = "ruff" },
 ]
 
 [package.metadata]
+requires-dist = [{ name = "httpx", specifier = ">=0.28.1" }]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pyrefly", specifier = ">=0.13.0" },
     { name = "pytest", specifier = ">=8.3.0" },
+    { name = "respx", specifier = ">=0.23.1" },
     { name = "ruff", specifier = ">=0.8.0" },
 ]
 
