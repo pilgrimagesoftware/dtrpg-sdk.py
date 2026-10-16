@@ -7,6 +7,7 @@ DriveThruRPG API into your application.
 
 from __future__ import annotations
 
+from dtrpg_sdk.auth import token_refresh
 from dtrpg_sdk.auth.session import AuthSession, AuthSessionError, AuthTokenResponse
 from dtrpg_sdk.config import Config
 from dtrpg_sdk.errors import UnauthenticatedError, UnconfiguredError
@@ -104,6 +105,30 @@ class DriveThruRpgSdk:
         self.require_config()
         self._session = AuthSession.from_api_response(response)
         return self.require_session()
+
+    def refresh_session(self) -> AuthSession:
+        """Renews the access token using the active session's refresh token.
+
+        On success the stored session is replaced with the one the API
+        returns, including its (possibly rotated) refresh token and expiry,
+        and the new session is returned. Any `LibraryClient` created earlier
+        still holds the old access token; call `library_client` again to get
+        one with the new token.
+
+        On failure the existing session is left in place, so the caller can
+        decide whether to retry, fall back to a fresh
+        `key_exchange.authenticate`, or `clear_session`.
+
+        Raises:
+            UnconfiguredError: If the SDK has not been configured.
+            UnauthenticatedError: If there is no active session.
+            HttpError: On transport errors.
+            DecodeFailedError: If the API rejects the refresh token.
+        """
+        config = self.require_config()
+        session = self.require_session()
+        response = token_refresh.refresh(session.refresh_token, config)
+        return self.apply_auth_response(response)
 
     def clear_session(self) -> None:
         """Removes the current authentication session without recording an error.

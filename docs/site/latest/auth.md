@@ -68,3 +68,24 @@ except UnauthenticatedError:
     # No session yet -- authenticate first.
     ...
 ```
+
+## Refreshing a session
+
+An access token is short-lived. To renew it without repeating the application-key
+exchange, call `sdk.refresh_session()`. It sends the session's refresh token to the API and
+replaces the stored session with the response, including the new refresh token and expiry.
+
+```python
+try:
+    sdk.refresh_session()
+except DecodeFailedError:
+    # The refresh token was rejected; fall back to key_exchange.authenticate with
+    # the application key. The existing session is left in place.
+    ...
+
+# Clients created before the refresh still hold the old token.
+client = sdk.library_client()
+```
+
+`auth.token_refresh.refresh(refresh_token, config)` makes the same call without an SDK
+instance.
