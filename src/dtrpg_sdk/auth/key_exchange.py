@@ -53,6 +53,19 @@ def authenticate(api_key: str, config: Config) -> AuthTokenResponse:
     except httpx.HTTPError as cause:
         raise HttpError(cause) from cause
 
+    return decode_token_response(url, response)
+
+
+def decode_token_response(url: str, response: httpx.Response) -> AuthTokenResponse:
+    """Decodes an auth endpoint's response into an `AuthTokenResponse`.
+
+    Shared by every endpoint that returns the token payload.
+
+    Raises:
+        DecodeFailedError: If the body cannot be parsed, including an error
+            body. The error carries the HTTP status and a truncated copy of
+            the payload for diagnosis.
+    """
     status = response.status_code
     _logger.debug("SDK response: %s -> %s", url, status)
 
@@ -62,7 +75,7 @@ def authenticate(api_key: str, config: Config) -> AuthTokenResponse:
         raw = response.text
         payload = _truncated_payload(raw)
         _logger.error(
-            "auth_key response decode failed: url=%s status=%s payload=%s error=%s",
+            "auth response decode failed: url=%s status=%s payload=%s error=%s",
             url,
             status,
             payload,
