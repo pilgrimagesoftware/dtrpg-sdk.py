@@ -7,6 +7,8 @@ A Python SDK for the [DriveThruRPG API](https://api.drivethrurpg.com).
 
 Requires Python 3.12+.
 
+[Documentation](https://pilgrimagesoftware.github.io/dtrpg-sdk.py/)
+
 Provides configuration, the credential-login and application-key auth flows, session
 lifecycle management, and a `LibraryClient` covering order products, download
 preparation, and product lists/product list items. For a reference implementation of
